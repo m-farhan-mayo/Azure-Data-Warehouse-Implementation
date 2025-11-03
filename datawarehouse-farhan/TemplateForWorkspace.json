@@ -271,6 +271,159 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('workspaceName'), '/Transformation Layer')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "Data Transformation",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "Dataflow",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"source": {},
+									"SilverDestination": {}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/dataflows/Dataflow')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/DataFlow_DS')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "StorageConnection_LS",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "Parquet",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"folderPath": "sales",
+						"fileSystem": "bronze"
+					},
+					"compressionCodec": "snappy"
+				},
+				"schema": [
+					{
+						"name": "OrderID",
+						"type": "UTF8"
+					},
+					{
+						"name": "OrderDate",
+						"type": "DATE"
+					},
+					{
+						"name": "CustomerID",
+						"type": "UTF8"
+					},
+					{
+						"name": "CustomerName",
+						"type": "UTF8"
+					},
+					{
+						"name": "CustomerEmail",
+						"type": "UTF8"
+					},
+					{
+						"name": "ProductID",
+						"type": "UTF8"
+					},
+					{
+						"name": "ProductName",
+						"type": "UTF8"
+					},
+					{
+						"name": "ProductCategory",
+						"type": "UTF8"
+					},
+					{
+						"name": "RegionID",
+						"type": "UTF8"
+					},
+					{
+						"name": "RegionName",
+						"type": "UTF8"
+					},
+					{
+						"name": "Country",
+						"type": "UTF8"
+					},
+					{
+						"name": "Quantity",
+						"type": "UTF8"
+					},
+					{
+						"name": "UnitPrice",
+						"type": "UTF8"
+					},
+					{
+						"name": "TotalAmount",
+						"type": "UTF8"
+					}
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/linkedServices/StorageConnection_LS')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/FlowSink_DS')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "StorageConnection_LS",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "Parquet",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"folderPath": "enrichedSales",
+						"fileSystem": "silver"
+					},
+					"compressionCodec": "snappy"
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/linkedServices/StorageConnection_LS')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('workspaceName'), '/Sink_DS')]",
 			"type": "Microsoft.Synapse/workspaces/datasets",
 			"apiVersion": "2019-06-01-preview",
@@ -463,24 +616,91 @@
 			"dependsOn": []
 		},
 		{
+			"name": "[concat(parameters('workspaceName'), '/Dataflow')]",
+			"type": "Microsoft.Synapse/workspaces/dataflows",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "DataFlow_DS",
+								"type": "DatasetReference"
+							},
+							"name": "source"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "FlowSink_DS",
+								"type": "DatasetReference"
+							},
+							"name": "SilverDestination"
+						}
+					],
+					"transformations": [
+						{
+							"name": "filter100"
+						},
+						{
+							"name": "cast"
+						},
+						{
+							"name": "AddColumn"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          OrderID as string,",
+						"          OrderDate as date,",
+						"          CustomerID as string,",
+						"          CustomerName as string,",
+						"          CustomerEmail as string,",
+						"          ProductID as string,",
+						"          ProductName as string,",
+						"          ProductCategory as string,",
+						"          RegionID as string,",
+						"          RegionName as string,",
+						"          Country as string,",
+						"          Quantity as string,",
+						"          UnitPrice as string,",
+						"          TotalAmount as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false,",
+						"     format: 'parquet') ~> source",
+						"cast filter(UnitPrice >= 100) ~> filter100",
+						"source cast(output(",
+						"          UnitPrice as double",
+						"     ),",
+						"     errors: true) ~> cast",
+						"filter100 derive(Domain = split(CustomerEmail, '@')[2]) ~> AddColumn",
+						"AddColumn sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     format: 'parquet',",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> SilverDestination"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/datasets/DataFlow_DS')]",
+				"[concat(variables('workspaceId'), '/datasets/FlowSink_DS')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('workspaceName'), '/WorkspaceSystemIdentity')]",
 			"type": "Microsoft.Synapse/workspaces/credentials",
 			"apiVersion": "2019-06-01-preview",
 			"properties": {
 				"type": "ManagedIdentity",
 				"typeProperties": {}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('workspaceName'), '/Pipeline 1')]",
-			"type": "Microsoft.Synapse/workspaces/pipelines",
-			"apiVersion": "2019-06-01-preview",
-			"properties": {
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"annotations": []
 			},
 			"dependsOn": []
 		}
