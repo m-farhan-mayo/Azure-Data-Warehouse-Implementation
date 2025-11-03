@@ -283,7 +283,10 @@
 				"type": "Parquet",
 				"typeProperties": {
 					"location": {
-						"type": "AzureBlobFSLocation"
+						"type": "AzureBlobFSLocation",
+						"fileName": "orderday1.parquet",
+						"folderPath": "sales",
+						"fileSystem": "bronze"
 					},
 					"compressionCodec": "snappy"
 				},
@@ -307,7 +310,7 @@
 				"typeProperties": {
 					"location": {
 						"type": "AzureBlobFSLocation",
-						"fileName": "order_day1.csv",
+						"fileName": "order_day0.csv",
 						"fileSystem": "source"
 					},
 					"columnDelimiter": ",",
@@ -466,6 +469,18 @@
 			"properties": {
 				"type": "ManagedIdentity",
 				"typeProperties": {}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/Pipeline 1')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": []
 			},
 			"dependsOn": []
 		}
