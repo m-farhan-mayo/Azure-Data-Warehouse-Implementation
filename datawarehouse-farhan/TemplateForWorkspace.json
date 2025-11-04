@@ -7,6 +7,10 @@
 			"metadata": "Workspace name",
 			"defaultValue": "datawarehouse-farhan"
 		},
+		"LS_serverless_password": {
+			"type": "secureString",
+			"metadata": "Secure string for 'password' of 'LS_serverless'"
+		},
 		"datawarehouse-farhan-WorkspaceDefaultSqlServer_connectionString": {
 			"type": "secureString",
 			"metadata": "Secure string for 'connectionString' of 'datawarehouse-farhan-WorkspaceDefaultSqlServer'",
@@ -15,6 +19,18 @@
 		"External_Lake_properties_typeProperties_url": {
 			"type": "string",
 			"defaultValue": "https://azuredatawarehousepro.dfs.core.windows.net/"
+		},
+		"LS_serverless_properties_typeProperties_server": {
+			"type": "string",
+			"defaultValue": "datawarehouse-farhan-ondemand.sql.azuresynapse.net"
+		},
+		"LS_serverless_properties_typeProperties_database": {
+			"type": "string",
+			"defaultValue": "SalesDWH"
+		},
+		"LS_serverless_properties_typeProperties_userName": {
+			"type": "string",
+			"defaultValue": "farhanadmin"
 		},
 		"StorageConnection_LS_properties_typeProperties_url": {
 			"type": "string",
@@ -283,6 +299,8 @@
 					{
 						"name": "Data Transformation",
 						"type": "ExecuteDataFlow",
+						"state": "Inactive",
+						"onInactiveMarkAs": "Succeeded",
 						"dependsOn": [],
 						"policy": {
 							"timeout": "0.12:00:00",
@@ -313,7 +331,14 @@
 					{
 						"name": "SilverTable",
 						"type": "Script",
-						"dependsOn": [],
+						"dependsOn": [
+							{
+								"activity": "Data Transformation",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
 						"policy": {
 							"timeout": "0.12:00:00",
 							"retry": 0,
@@ -322,8 +347,20 @@
 							"secureInput": false
 						},
 						"userProperties": [],
+						"linkedServiceName": {
+							"referenceName": "LS_serverless",
+							"type": "LinkedServiceReference"
+						},
 						"typeProperties": {
-							"scripts": [],
+							"scripts": [
+								{
+									"type": "Query",
+									"text": {
+										"value": "IF NOT EXISTS ( SELECT *  FROM sys.tables t JOIN sys.schemas s ON t.schema_id = s.schema_id\nWHERE t.name = 'silverTable' AND s.name = 'silver' )\n    CREATE EXTERNAL TABLE silver.silverTable\n    (\n        OrderID VARCHAR(100),\n        OrderDate DATETIME2,\n        CustomerID VARCHAR(100),\n        CustomerName VARCHAR(100),\n        CustomerEmail VARCHAR(100),\n        ProductID VARCHAR(100),\n        ProductName VARCHAR(100),\n        ProductCategory VARCHAR(100), \n        RegionID VARCHAR(100),\n        RegionName VARCHAR(100),\n        Country VARCHAR(100),\n        Quantity VARCHAR(100),\n        UnitPrice FLOAT,\n        TotalAmount VARCHAR(100),\n        Domain VARCHAR(100)\n    )\n    WITH\n    (\n        LOCATION = 'enrichedSales',\n        DATA_SOURCE = silver_source,\n        FILE_FORMAT = parquet_format\n    )",
+										"type": "Expression"
+									}
+								}
+							],
 							"scriptBlockExecutionTimeout": "02:00:00"
 						}
 					}
@@ -335,7 +372,7 @@
 			},
 			"dependsOn": [
 				"[concat(variables('workspaceId'), '/dataflows/Dataflow')]",
-				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+				"[concat(variables('workspaceId'), '/linkedServices/LS_serverless')]"
 			]
 		},
 		{
@@ -565,6 +602,34 @@
 				"type": "AzureBlobFS",
 				"typeProperties": {
 					"url": "[parameters('External_Lake_properties_typeProperties_url')]"
+				},
+				"connectVia": {
+					"referenceName": "AutoResolveIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/LS_serverless')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "AzureSqlDW",
+				"typeProperties": {
+					"server": "[parameters('LS_serverless_properties_typeProperties_server')]",
+					"database": "[parameters('LS_serverless_properties_typeProperties_database')]",
+					"encrypt": "optional",
+					"trustServerCertificate": false,
+					"authenticationType": "SQL",
+					"userName": "[parameters('LS_serverless_properties_typeProperties_userName')]",
+					"password": {
+						"type": "SecureString",
+						"value": "[parameters('LS_serverless_password')]"
+					}
 				},
 				"connectVia": {
 					"referenceName": "AutoResolveIntegrationRuntime",

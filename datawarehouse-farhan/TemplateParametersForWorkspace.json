@@ -5,11 +5,23 @@
 		"workspaceName": {
 			"value": "datawarehouse-farhan"
 		},
+		"LS_serverless_password": {
+			"value": ""
+		},
 		"datawarehouse-farhan-WorkspaceDefaultSqlServer_connectionString": {
 			"value": "Integrated Security=False;Encrypt=True;Connection Timeout=30;Data Source=tcp:datawarehouse-farhan.sql.azuresynapse.net,1433;Initial Catalog=@{linkedService().DBName}"
 		},
 		"External_Lake_properties_typeProperties_url": {
 			"value": "https://azuredatawarehousepro.dfs.core.windows.net/"
+		},
+		"LS_serverless_properties_typeProperties_server": {
+			"value": "datawarehouse-farhan-ondemand.sql.azuresynapse.net"
+		},
+		"LS_serverless_properties_typeProperties_database": {
+			"value": "SalesDWH"
+		},
+		"LS_serverless_properties_typeProperties_userName": {
+			"value": "farhanadmin"
 		},
 		"StorageConnection_LS_properties_typeProperties_url": {
 			"value": "https://azuredatawarehousepro.dfs.core.windows.net/"
