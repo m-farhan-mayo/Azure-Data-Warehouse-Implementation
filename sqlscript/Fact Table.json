@@ -2,7 +2,7 @@
 	"name": "Fact Table",
 	"properties": {
 		"content": {
-			"query": "--SELECT * FROM silver.silverTable\n\nSELECT\n    O.DimOrders,\n    C.DimCust,\n    P.DimProd,\n    R.DimGeog,\n    F.Quantity,\n    F.UnitPrice,\n    F.TotalAmount\nFROM\n    silver.silverTable F\nLEFT JOIN\n    gold.DimCustomers C ON C.CustomerID = F.CustomerID\nLEFT JOIN\n    gold.DimRegion R ON R.RegionID = F.RegionID AND R.Country = F.Country\nLEFT JOIN\n    gold.DimProducts P ON P.ProductID = F.ProductID\nLEFT JOIN \n    gold.DimOrders O ON O.OrderID = F.OrderID",
+			"query": "IF NOT EXISTS (  SELECT *  FROM sys.tables t JOIN sys.schemas s ON t.schema_id = s.schema_id\n                    WHERE t.name = 'FactTable' AND s.name = 'gold')\n    CREATE EXTERNAL TABLE gold.FactTable\n        WITH\n        (\n            LOCATION = 'FactTable',\n            DATA_SOURCE = gold_source,\n            FILE_FORMAT = parquet_format\n        )\n        SELECT\n            O.DimOrders,\n            C.DimCust,\n            P.DimProd,\n            R.DimGeog,\n            F.Quantity,\n            F.UnitPrice,\n            F.TotalAmount\n        FROM\n            silver.silverTable F\n        LEFT JOIN\n            gold.DimCustomers C ON C.CustomerID = F.CustomerID\n        LEFT JOIN\n            gold.DimRegion R ON R.RegionID = F.RegionID AND R.Country = F.Country\n        LEFT JOIN\n            gold.DimProducts P ON P.ProductID = F.ProductID\n        LEFT JOIN \n            gold.DimOrders O ON O.OrderID = F.OrderID",
 			"metadata": {
 				"language": "sql"
 			},
