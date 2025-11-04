@@ -12,6 +12,10 @@
 			"metadata": "Secure string for 'connectionString' of 'datawarehouse-farhan-WorkspaceDefaultSqlServer'",
 			"defaultValue": "Integrated Security=False;Encrypt=True;Connection Timeout=30;Data Source=tcp:datawarehouse-farhan.sql.azuresynapse.net,1433;Initial Catalog=@{linkedService().DBName}"
 		},
+		"External_Lake_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://azuredatawarehousepro.dfs.core.windows.net/"
+		},
 		"StorageConnection_LS_properties_typeProperties_url": {
 			"type": "string",
 			"defaultValue": "https://azuredatawarehousepro.dfs.core.windows.net/"
@@ -305,6 +309,23 @@
 							},
 							"traceLevel": "Fine"
 						}
+					},
+					{
+						"name": "SilverTable",
+						"type": "Script",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"scripts": [],
+							"scriptBlockExecutionTimeout": "02:00:00"
+						}
 					}
 				],
 				"policy": {
@@ -313,7 +334,8 @@
 				"annotations": []
 			},
 			"dependsOn": [
-				"[concat(variables('workspaceId'), '/dataflows/Dataflow')]"
+				"[concat(variables('workspaceId'), '/dataflows/Dataflow')]",
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
 			]
 		},
 		{
@@ -535,6 +557,25 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('workspaceName'), '/External_Lake')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobFS",
+				"typeProperties": {
+					"url": "[parameters('External_Lake_properties_typeProperties_url')]"
+				},
+				"connectVia": {
+					"referenceName": "AutoResolveIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('workspaceName'), '/StorageConnection_LS')]",
 			"type": "Microsoft.Synapse/workspaces/linkedServices",
 			"apiVersion": "2019-06-01-preview",
@@ -701,6 +742,86 @@
 			"properties": {
 				"type": "ManagedIdentity",
 				"typeProperties": {}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/Creating Schemas')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "CREATE SCHEMA silver;\n\nCREATE SCHEMA gold;",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "SalesDWH",
+						"poolName": "Built-in"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/External_Resources')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "------------------------------\n------CREATE MASTER KEY-------\n------------------------------\nCREATE MASTER KEY ENCRYPTION BY PASSWORD ='0326@Farhan'\n\n------------------------------\n-- DATABASE SCOPE CREDENTIAL--\n------------------------------\n\nCREATE DATABASE SCOPED CREDENTIAL farhan_creds\nWITH IDENTITY = 'Managed Identity'\n\n\n------------------------------\n-----EXTERNAL DATA SOURCE-----\n------------------------------\n\nCREATE EXTERNAL DATA SOURCE silver_source\nWITH(\n    LOCATION = 'https://azuredatawarehousepro.dfs.core.windows.net/silver/',\n    CREDENTIAL = farhan_creds\n)\n\nCREATE EXTERNAL DATA SOURCE gold_source\nWITH(\n    LOCATION = 'https://azuredatawarehousepro.dfs.core.windows.net/gold/',\n    CREDENTIAL = farhan_creds\n)\n\n------------------------------\n-----EXTERNAL FILE FORMAT-----\n------------------------------\n\nCREATE EXTERNAL FILE FORMAT parquet_format\nWITH(\n    FORMAT_TYPE = PARQUET,\n    DATA_COMPRESSION = 'org.apache.hadoop.io.compress.SnappyCodec'\n)\n\nCREATE EXTERNAL FILE FORMAT delta_format\nWITH(\n    FORMAT_TYPE = DELTA\n)\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "SalesDWH",
+						"poolName": "Built-in"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/Open Row Set')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "-- This is auto-generated code\nSELECT\n    TOP 100 *\nFROM\n    OPENROWSET(\n        BULK 'enrichedSales',\n        DATA_SOURCE = 'silver_source',\n        FORMAT = 'PARQUET'\n    ) AS [result]\n\n\n\n\n\n\n\n\n\n\n\n\n\n",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "SalesDWH",
+						"poolName": "Built-in"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/Silver Table')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "IF NOT EXISTS ( SELECT *  FROM sys.tables t JOIN sys.schemas s ON t.schema_id = s.schema_id\nWHERE t.name = 'silverTable' AND s.name = 'silver' )\n    CREATE EXTERNAL TABLE silver.silverTable\n    (\n        OrderID VARCHAR(100),\n        OrderDate DATETIME2,\n        CustomerID VARCHAR(100),\n        CustomerName VARCHAR(100),\n        CustomerEmail VARCHAR(100),\n        ProductID VARCHAR(100),\n        ProductName VARCHAR(100),\n        ProductCategory VARCHAR(100), \n        RegionID VARCHAR(100),\n        RegionName VARCHAR(100),\n        Country VARCHAR(100),\n        Quantity VARCHAR(100),\n        UnitPrice FLOAT,\n        TotalAmount VARCHAR(100),\n        Domain VARCHAR(100)\n    )\n    WITH\n    (\n        LOCATION = 'enrichedSales',\n        DATA_SOURCE = silver_source,\n        FILE_FORMAT = parquet_format\n    )",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "SalesDWH",
+						"poolName": "Built-in"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
 			},
 			"dependsOn": []
 		}
