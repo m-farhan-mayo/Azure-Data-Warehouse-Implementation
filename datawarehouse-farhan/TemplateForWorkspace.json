@@ -831,6 +831,26 @@
 			"dependsOn": []
 		},
 		{
+			"name": "[concat(parameters('workspaceName'), '/Dimension Tables')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "SELECT * FROM silver.silverTable\n\n------------------------\n------DIMCUSTOMERS------\n------------------------\n\nIF NOT EXISTS (  SELECT *  FROM sys.tables t JOIN sys.schemas s ON t.schema_id = s.schema_id\n                    WHERE t.name = 'DimCustomers' AND s.name = 'gold')\n    CREATE EXTERNAL TABLE gold.DimCustomers\n    WITH\n    (\n        LOCATION = 'DimCustomers',\n        DATA_SOURCE = gold_source,\n        FILE_FORMAT = parquet_format\n    )\n    AS\n    SELECT\n        DISTINCT\n        CustomerID,\n        CustomerName,\n        CustomerEmail,\n        Domain,\n        ROW_NUMBER() OVER (ORDER BY CustomerID) as DimCust\n    FROM\n        silver.silverTable\n\n------------------------\n------DIMPRODUCTS------\n------------------------\n\nIF NOT EXISTS (  SELECT *  FROM sys.tables t JOIN sys.schemas s ON t.schema_id = s.schema_id\n                    WHERE t.name = 'DimProducts' AND s.name = 'gold')\n    CREATE EXTERNAL TABLE gold.DimProducts\n    WITH\n    (\n        LOCATION = 'DimProducts',\n        DATA_SOURCE = gold_source,\n        FILE_FORMAT = parquet_format\n    )\n    AS\n    SELECT\n        DISTINCT\n        ProductID,\n        ProductName,\n        ProductCategory,\n        ROW_NUMBER() OVER (ORDER BY ProductID) as DimProd\n    FROM\n        silver.silverTable\n    \n------------------------\n------DimRegion------\n------------------------\n\nIF NOT EXISTS (  SELECT *  FROM sys.tables t JOIN sys.schemas s ON t.schema_id = s.schema_id\n                    WHERE t.name = 'DimRegion' AND s.name = 'gold')\n    CREATE EXTERNAL TABLE gold.DimRegion\n    WITH\n    (\n        LOCATION = 'DimRegion',\n        DATA_SOURCE = gold_source,\n        FILE_FORMAT = parquet_format\n    )\n    AS\n    SELECT\n        DISTINCT\n        RegionID,\n        RegionName,\n        Country,\n        ROW_NUMBER() OVER (ORDER BY ProductID) as DimGeog\n    FROM\n        silver.silverTable\n\n------------------------\n------DimOrders------\n------------------------\n\nIF NOT EXISTS (  SELECT *  FROM sys.tables t JOIN sys.schemas s ON t.schema_id = s.schema_id\n                    WHERE t.name = 'DimOrders' AND s.name = 'gold')\n    CREATE EXTERNAL TABLE gold.DimOrders\n    WITH\n    (\n        LOCATION = 'DimOrders',\n        DATA_SOURCE = gold_source,\n        FILE_FORMAT = parquet_format\n    )\n    AS\n    SELECT\n        OrderID,\n        OrderDate,\n        CustomerID,\n        CustomerName,\n        CustomerEmail,\n        Domain,\n        ProductID,\n        ProductName,\n        ProductCategory,\n        RegionID,\n        RegionName,\n        Country,\n        ROW_NUMBER() OVER (ORDER BY OrderID) as DimOrders\n    FROM\n        silver.silverTable\n    ",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "SalesDWH",
+						"poolName": "Built-in"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('workspaceName'), '/External_Resources')]",
 			"type": "Microsoft.Synapse/workspaces/sqlscripts",
 			"apiVersion": "2019-06-01-preview",
